@@ -1,0 +1,230 @@
+---
+title: "Releases"
+resource_files:
+- data/issuesClosed.RData
+- data/issuesOpen.RData
+- data/issuesBacklog.RData
+- data/plots.RData
+runtime: shiny
+output: flexdashboard::flex_dashboard
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## load libraries
+library(here)
+library(flexdashboard)
+library(shiny)
+library(knitr)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+## load libraries end
+
+## load open data
+load(here::here("data", "issuesOpen.RData"))
+## load open data end
+
+## load open epic data
+load(here::here("data", "issuesBacklog.RData"))
+## load open epicdata end
+
+## load closed data
+load(here::here("data", "issuesClosed.RData"))
+## load closed data end
+
+## load plots
+load(here::here("data", "plots.RData"))
+## load plots end
+
+## combine data
+issues <- rbind(issuesClosed, issuesOpen)
+issuesEpics <- rbind(issuesBacklog)
+rm(issuesClosed, issuesOpen, issuesBacklog)
+## combine data end
+
+```
+
+Releases Over Time
+=====================================
+
+Column {data-width=100}
+-------------------------------------
+
+```{r, echo=FALSE}
+inputPanel(
+  selectInput(inputId = "ms1", 
+              label = "Filter From:",
+              choices = sort(unique(milestones$title), decreasing = F), 
+              selected = "Miu v2.10"
+              )
+  )
+```
+
+### Backlog
+
+```{r backlog, echo=FALSE}
+renderPlot({
+  issuesEpics <- issuesEpics
+  plotBarMBacklog(issuesEpics)
+  })
+```
+
+Column
+-------------------------------------
+
+### Gantt Chart {data-height=200}
+
+```{r gantt, echo=FALSE}
+renderPlot({
+  issues <- issues
+  plotBarMGantt(issues, milestones, input$ms1)
+})
+```
+
+### Epics By Release
+
+```{r epics, echo=FALSE}
+renderPlot({
+  issues <- issues
+  plotBarMEpics(issues, milestones, input$ms1)
+})
+```
+
+Release Individual
+===================================== 
+
+Column {data-width=190}
+-------------------------------------
+
+```{r, echo=FALSE}
+inputPanel(
+  selectInput(inputId = "ms2", 
+              label = "Milestone:",
+              choices = sort(unique(milestones$title), decreasing = F), 
+              selected = "Miu v2.10"
+              )
+)
+```
+
+### Issues To Do
+    
+```{r issuesToDo, echo = FALSE }
+renderValueBox({
+  issues <- issues
+  valueBox(
+    countIssuesState(issues, input$ms2, "To Do"),
+    "Issues To Do",
+    color = "#0D47A1"
+    )
+  })
+```
+
+### Issues On Dev 
+    
+```{r issuesOnDev, echo = FALSE }
+renderValueBox({
+  issues <- issues
+    valueBox(
+      countIssuesState(issues, input$ms2, "On Dev"),
+      "Issues On Dev",
+      color = "#1976D2"
+    )
+  })
+```
+
+### Issues On PProd 
+    
+```{r issuesOnPProd, echo = FALSE }
+renderValueBox({
+  issues <- issues
+    valueBox(
+      countIssuesState(issues, input$ms2, "On PProd"),
+      "Issues On PProd",
+      color = "#2196F3"
+    )
+  })
+```
+
+### Issues On Prod 
+    
+```{r issuesOnProd, echo = FALSE }
+renderValueBox({
+  issues <- issues
+    valueBox(
+      countIssuesState(issues, input$ms2, "On Prod"),
+      "Issues On Prod",
+      color = "#64B5F6"
+    )
+  })
+```
+
+### Total Issues
+    
+```{r issues, echo = FALSE }
+renderValueBox({
+  issues <- issues
+    valueBox(
+      countIssues(issues, input$ms2),
+      "Total Issues",
+      color = "#000000"
+    )
+  })
+```
+
+
+### Sprints to Deadline
+    
+```{r days, echo = FALSE }
+renderValueBox({
+  issues <- issues
+  valueBox(
+    as.integer(as.integer(endDate(issues, input$ms2) - if(countIssuesOpen(issues, input$ms2)>0){Sys.Date()}else{endDateActual(issues, input$ms2)})/14),"Sprints to Deadline", color = if(as.integer(as.integer(endDate(issues, input$ms2) - if(countIssuesOpen(issues,input$ms2)>0){Sys.Date()}else{endDateActual(issues,input$ms2)})/14)>=0){"#000000"}else{"#F44336"}
+    )
+  })
+```
+
+Column
+-------------------------------------
+
+### Release Burndown
+
+```{r burn, echo=FALSE}
+renderPlot({
+  issues <- issues
+  plotBurn(issues, input$ms2)
+})
+```
+
+### Tickets open by Type
+
+```{r type, echo=FALSE}
+renderPlot({
+  issues <- issues
+  plotLineType(issues, input$ms2)
+})
+```
+
+
+### Ticket progress by Repo
+
+```{r bar, echo=FALSE}
+renderPlot({
+  issues <- issues
+  plotBarRepo(issues, input$ms2)
+})
+```
+
+Column
+-------------------------------------
+
+### Ticket progress by Story
+
+```{r barS, echo=FALSE}
+renderPlot({
+  issues <- issues
+  plotBarStory(issues, input$ms2)
+})
+```
